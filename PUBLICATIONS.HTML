@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Publications</title>
+
+<style>
+body {
+font-family: 'Inter', sans-serif;  background:#dfe9f3;
+  margin: 0;
+  padding: 20px;
+}
+header{
+  padding:30px;
+  text-align:center;
+  background:#0f172a;
+  color:White;
+  font-size:29px;
+  font-weight:600;
+  letter-spacing:1px;
+}
+
+/* Controls */
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+select, input, button {
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  font-size: 16px;
+}
+
+/* Button style */
+button {
+  background:#0f172a;
+  color: white;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #1e293b;
+}
+
+/* Table */
+.table-container {
+  margin-top: 20px;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(255,255,255,0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+th, td {
+  padding: 12px;
+  text-align: left;
+}
+
+th {
+  background: #0f172a;
+  color: white;
+}
+
+/* White gradient rows */
+tbody tr {
+  background: linear-gradient(to right, #ffffff, #f9fafb);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+tbody tr:hover {
+  background: linear-gradient(to right, #e0f2fe, #f0f9ff);
+}
+
+a {
+  text-decoration: none;
+  color: #0077cc;
+  font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<header>PUBLICATIONS</header>
+
+<!-- Controls -->
+<div class="controls">
+  <input type="text" id="searchInput" placeholder="Search publications...">
+  
+  <select id="yearFilter">
+    <option value="all">All Years</option>
+  </select>
+
+  <select id="sortOption">
+    <option value="default">Sort By</option>
+    <option value="titleAsc">Title (A-Z)</option>
+    <option value="titleDesc">Title (Z-A)</option>
+    <option value="yearDesc">Year (Newest)</option>
+    <option value="yearAsc">Year (Oldest)</option>
+  </select>
+
+  <!-- ✅ Download Button -->
+  <button onclick="downloadCSV()">Download CSV</button>
+</div>
+
+<div class="table-container">
+  <table>
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Year</th>
+        <th>Link</th>
+      </tr>
+    </thead>
+    <tbody id="pubTable"></tbody>
+  </table>
+</div>
+
+<script>
+let publications = [];
+let filteredData = [];
+
+// Fetch data
+fetch('publications.json')
+  .then(res => res.json())
+  .then(data => {
+    publications = data;
+    filteredData = data;
+
+    populateYears(data);
+    displayData(filteredData);
+  });
+
+// Display
+function displayData(data) {
+  const table = document.getElementById('pubTable');
+  table.innerHTML = "";
+
+  data.forEach(pub => {
+    const row = document.createElement('tr');
+
+    row.innerHTML = `
+      <td>${pub.title}</td>
+      <td>${pub.year}</td>
+      <td><a href="${pub.link}" target="_blank">View</a></td>
+    `;
+
+    table.appendChild(row);
+  });
+}
+
+// Populate Years
+function populateYears(data) {
+  const yearSet = new Set();
+
+  data.forEach(pub => {
+    if (pub.year) yearSet.add(pub.year);
+  });
+
+  const yearFilter = document.getElementById('yearFilter');
+
+  [...yearSet]
+    .sort((a, b) => b - a)
+    .forEach(year => {
+      const option = document.createElement('option');
+      option.value = year;
+      option.textContent = year;
+      yearFilter.appendChild(option);
+    });
+}
+
+// Apply Filters + Search + Sort
+function applyAll() {
+  const searchText = document.getElementById('searchInput').value.toLowerCase();
+  const selectedYear = document.getElementById('yearFilter').value;
+  const sortOption = document.getElementById('sortOption').value;
+
+  let data = [...publications];
+
+  if (searchText) {
+    data = data.filter(pub =>
+      pub.title.toLowerCase().includes(searchText)
+    );
+  }
+
+  if (selectedYear !== "all") {
+    data = data.filter(pub => pub.year == selectedYear);
+  }
+
+  switch(sortOption) {
+    case "titleAsc":
+      data.sort((a,b) => a.title.localeCompare(b.title));
+      break;
+    case "titleDesc":
+      data.sort((a,b) => b.title.localeCompare(a.title));
+      break;
+    case "yearDesc":
+      data.sort((a,b) => b.year - a.year);
+      break;
+    case "yearAsc":
+      data.sort((a,b) => a.year - b.year);
+      break;
+  }
+
+  filteredData = data;
+  displayData(filteredData);
+}
+
+// ✅ CSV Download
+function downloadCSV() {
+  let csv = "Title,Year,Link\n";
+
+  filteredData.forEach(pub => {
+    const row = `"${pub.title}","${pub.year}","${pub.link}"`;
+    csv += row + "\n";
+  });
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = window.URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "publications.csv";
+  a.click();
+
+  window.URL.revokeObjectURL(url);
+}
+
+// Event listeners
+document.getElementById('searchInput').addEventListener('input', applyAll);
+document.getElementById('yearFilter').addEventListener('change', applyAll);
+document.getElementById('sortOption').addEventListener('change', applyAll);
+
+</script>
+
+</body>
+</html>
